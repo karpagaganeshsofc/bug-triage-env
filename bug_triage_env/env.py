@@ -145,7 +145,7 @@ class BugTriageEnvironment(Environment):
         self._current_bug_idx += 1
         done = self._current_bug_idx >= self._bug_count
         avg_score = sum(self._scores) / len(self._scores) if self._scores else 0.0
-        avg_score = min(max(avg_score, 0.0), 1.0)  # clamp to [0, 1]
+        avg_score = min(max(avg_score, 0.01), 0.99)  # strictly between 0 and 1
 
         if done:
             return BugTriageObservation(
@@ -190,7 +190,7 @@ class BugTriageEnvironment(Environment):
     def _make_observation(self, feedback: str, step_score: float = 0.0) -> BugTriageObservation:
         idx = self._current_bug_idx
         if idx >= self._bug_count:
-            return BugTriageObservation(done=True, reward=min(max(sum(self._scores) / len(self._scores), 0.0), 1.0) if self._scores else 0.0, feedback=feedback)
+            return BugTriageObservation(done=True, reward=min(max(sum(self._scores) / len(self._scores), 0.01), 0.99) if self._scores else 0.01, feedback=feedback)
 
         template = self._bugs[idx]
         bug = template.bug

@@ -21,16 +21,14 @@ from openai import OpenAI
 from openenv import GenericEnvClient
 
 # ── Defaults ──────────────────────────────────────────────────────────
-DEFAULT_API_BASE = "https://router.huggingface.co/v1"
-DEFAULT_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 DEFAULT_ENV_URL = "https://karpagaganeshs-bug-triage-env.hf.space"
 
-API_BASE_URL = os.environ.get("API_BASE_URL", DEFAULT_API_BASE)
-API_KEY = os.environ.get("API_KEY", os.environ.get("HF_TOKEN", ""))
-MODEL_NAME = os.environ.get("MODEL_NAME", DEFAULT_MODEL)
-ENV_URL = os.environ.get("ENV_URL", DEFAULT_ENV_URL)
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+ENV_URL = os.getenv("ENV_URL", DEFAULT_ENV_URL)
 
-llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 # ── Prompt templates ──────────────────────────────────────────────────
 

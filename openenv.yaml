@@ -1,0 +1,14 @@
+environment: bug_triage_env.server:app
+name: Bug Triage & Fix Recommendation
+description: >
+  Multi-step bug investigation and triage environment. The agent receives
+  brief bug reports and must strategically investigate (logs, related bugs,
+  reporter details) before submitting a triage decision. Investigation costs
+  budget — efficient agents score higher.
+tasks:
+  - id: easy
+    description: Full information bug classification
+  - id: medium
+    description: Investigate and classify bug type and severity
+  - id: hard
+    description: Full triage with fix suggestion under limited budget

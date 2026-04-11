@@ -219,7 +219,7 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
                 episode_done = False
 
             step_count += 1
-            step_reward = float(result.reward) if error_str == "null" and result.reward is not None else 0.0
+            step_reward = float(obs.get("step_score", 0.0)) if error_str == "null" else 0.0
             all_rewards.append(step_reward)
             done_str = "true" if episode_done else "false"
 

@@ -91,7 +91,7 @@ class BugTriageObservation(Observation):
     investigation_budget: int = 0
     phase: str = "investigate"
     feedback: str = ""
-    step_score: float = 0.0
+    step_score: float = 0.01
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +104,6 @@ class BugTriageState(State):
     task_name: str = ""
     total_bugs: int = 0
     bugs_processed: int = 0
-    cumulative_score: float = 0.0
+    cumulative_score: float = 0.01
     investigations_used: int = 0
     investigation_budget: int = 0

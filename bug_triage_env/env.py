@@ -173,13 +173,15 @@ class BugTriageEnvironment(Environment):
 
     @property
     def state(self) -> BugTriageState:
+        scores = getattr(self, "_scores", [])
+        avg = min(max(sum(scores) / len(scores), 0.01), 0.99) if scores else 0.01
         return BugTriageState(
             episode_id=getattr(self, "_episode_id", ""),
-            step_count=len(getattr(self, "_scores", [])),
+            step_count=len(scores),
             task_name=getattr(self, "_task", ""),
             total_bugs=getattr(self, "_bug_count", 0),
-            bugs_processed=len(getattr(self, "_scores", [])),
-            cumulative_score=sum(getattr(self, "_scores", [])),
+            bugs_processed=len(scores),
+            cumulative_score=avg,
             investigations_used=getattr(self, "_investigations_used_total", 0),
             investigation_budget=getattr(self, "_investigation_budget", 0),
         )
@@ -188,7 +190,7 @@ class BugTriageEnvironment(Environment):
     # Helpers
     # ------------------------------------------------------------------
 
-    def _make_observation(self, feedback: str, step_score: float = 0.0) -> BugTriageObservation:
+    def _make_observation(self, feedback: str, step_score: float = 0.01) -> BugTriageObservation:
         idx = self._current_bug_idx
         if idx >= self._bug_count:
             return BugTriageObservation(done=True, reward=min(max(sum(self._scores) / len(self._scores), 0.01), 0.99) if self._scores else 0.01, feedback=feedback)

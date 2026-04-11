@@ -140,6 +140,7 @@ class BugTriageEnvironment(Environment):
         # Penalty for wasted (repeated) investigation attempts
         waste_penalty = self._wasted_investigations[idx] * 0.05
         score = max(0.0, score - waste_penalty)
+        score = min(max(score, 0.01), 0.99)  # clamp individual score strictly (0,1)
         self._scores.append(score)
 
         self._current_bug_idx += 1

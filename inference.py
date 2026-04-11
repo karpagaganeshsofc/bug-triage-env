@@ -219,7 +219,8 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
                 episode_done = False
 
             step_count += 1
-            step_reward = float(obs.get("step_score", 0.0)) if error_str == "null" else 0.0
+            raw_reward = float(obs.get("step_score", 0.0)) if error_str == "null" else 0.0
+            step_reward = min(max(raw_reward, 0.01), 0.99)
             all_rewards.append(step_reward)
             done_str = "true" if episode_done else "false"
 
@@ -234,10 +235,10 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
             print(f"[STEP] step={step_count} action={act_summary} reward={step_reward:.2f} done={done_str} error={error_str}")
 
             if step_count > 60:
-                print("[STEP] step={} action=safety_stop reward=0.00 done=true error=null".format(step_count + 1))
+                print("[STEP] step={} action=safety_stop reward=0.01 done=true error=null".format(step_count + 1))
                 break
 
-    final_reward = min(max(final_reward, 0.0), 1.0)
+    final_reward = min(max(final_reward, 0.01), 0.99)
     all_rewards_str = ",".join(f"{r:.2f}" for r in all_rewards)
     return final_reward, step_count, all_rewards_str
 
@@ -253,7 +254,7 @@ def main():
             score, steps, rewards_str = asyncio.run(run_episode(ENV_URL, task, seed=42))
             print(f"[END] success=true steps={steps} rewards={rewards_str}")
         except Exception as e:
-            print(f"[END] success=false steps=0 rewards=0.00 error={e}")
+            print(f"[END] success=false steps=0 rewards=0.01 error={e}")
 
 
 if __name__ == "__main__":

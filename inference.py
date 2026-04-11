@@ -25,10 +25,10 @@ DEFAULT_ENV_URL = "https://karpagaganeshs-bug-triage-env.hf.space"
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("API_KEY", os.getenv("HF_TOKEN"))
 ENV_URL = os.getenv("ENV_URL", DEFAULT_ENV_URL)
 
-llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
 # ── Prompt templates ──────────────────────────────────────────────────
 

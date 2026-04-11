@@ -23,12 +23,17 @@ from openenv import GenericEnvClient
 # ── Defaults ──────────────────────────────────────────────────────────
 DEFAULT_ENV_URL = "https://karpagaganeshs-bug-triage-env.hf.space"
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-API_KEY = os.getenv("API_KEY", os.getenv("HF_TOKEN"))
-ENV_URL = os.getenv("ENV_URL", DEFAULT_ENV_URL)
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+ENV_URL = os.environ.get("ENV_URL", DEFAULT_ENV_URL)
 
-llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+def _get_api_key():
+    """Get API key: prefer API_KEY (validator proxy), fall back to HF_TOKEN."""
+    return os.environ.get("API_KEY") or os.environ.get("HF_TOKEN") or ""
+
+def _get_llm_client():
+    """Create OpenAI client at call time so env vars are read fresh."""
+    return OpenAI(base_url=API_BASE_URL, api_key=_get_api_key())
 
 # ── Prompt templates ──────────────────────────────────────────────────
 
@@ -87,9 +92,10 @@ TRIAGE_FORMATS = {
 
 def call_llm(messages: list, temperature: float = 0.2, retries: int = 3) -> str:
     """Call the LLM and return its text response, with retries for transient errors."""
+    client = _get_llm_client()
     for attempt in range(retries):
         try:
-            resp = llm_client.chat.completions.create(
+            resp = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=temperature,

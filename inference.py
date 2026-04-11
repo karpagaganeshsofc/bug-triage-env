@@ -219,7 +219,7 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
                 episode_done = False
 
             step_count += 1
-            step_reward = obs.get("step_score", 0.0) if error_str == "null" else 0.0
+            step_reward = float(result.reward) if error_str == "null" and result.reward is not None else 0.0
             all_rewards.append(step_reward)
             done_str = "true" if episode_done else "false"
 
@@ -246,26 +246,14 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
 
 def main():
     tasks = ["easy", "medium", "hard"]
-    scores = {}
-    total_steps = 0
 
     for task in tasks:
         print(f"[START] task={task} env=bug_triage model={MODEL_NAME}")
         try:
             score, steps, rewards_str = asyncio.run(run_episode(ENV_URL, task, seed=42))
-            scores[task] = score
-            total_steps += steps
-            print(f"[END] success=true steps={steps} score={score:.2f} rewards={rewards_str}")
+            print(f"[END] success=true steps={steps} rewards={rewards_str}")
         except Exception as e:
-            print(f"[END] success=false steps=0 score=0.00 rewards= error={e}")
-            scores[task] = 0.0
-
-    avg = sum(scores.values()) / len(scores) if scores else 0.0
-    print(f"[START] task=summary env=bug_triage model={MODEL_NAME}")
-    print(f"[STEP] step=1 action=report reward={avg:.2f} done=true error=null")
-    for t in tasks:
-        print(f"[STEP] step=0 action={t} reward={scores.get(t, 0.0):.2f} done=true error=null")
-    print(f"[END] success=true steps={total_steps} score={avg:.2f} rewards={','.join(f'{scores.get(t,0):.2f}' for t in tasks)}")
+            print(f"[END] success=false steps=0 rewards=0.00 error={e}")
 
 
 if __name__ == "__main__":

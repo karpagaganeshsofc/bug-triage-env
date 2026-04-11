@@ -32,7 +32,7 @@ class BugTriageEnvironment(Environment):
         """Return an empty observation (before reset)."""
         return BugTriageObservation(
             done=False,
-            reward=0.0,
+            reward=0.01,
             feedback="Call reset with a task name to begin: easy, medium, or hard.",
         )
 
@@ -45,7 +45,7 @@ class BugTriageEnvironment(Environment):
         if self._task not in TASK_CONFIG:
             return BugTriageObservation(
                 done=True,
-                reward=0.0,
+                reward=0.01,
                 feedback=f"Invalid task '{task}'. Choose: easy, medium, hard.",
             )
 
@@ -73,7 +73,7 @@ class BugTriageEnvironment(Environment):
 
     def step(self, action: BugTriageAction) -> BugTriageObservation:
         if not hasattr(self, "_bugs") or self._current_bug_idx >= self._bug_count:
-            return BugTriageObservation(done=True, reward=0.0, feedback="Episode is done.")
+            return BugTriageObservation(done=True, reward=0.01, feedback="Episode is done.")
 
         action_type = action.action_type.strip().lower()
 
@@ -216,7 +216,7 @@ class BugTriageEnvironment(Environment):
 
         return BugTriageObservation(
             done=False,
-            reward=0.0,
+            reward=0.01,
             bug_report=bug,
             investigations_done=investigations_done,
             available_investigations=available if budget_remaining > 0 else [],

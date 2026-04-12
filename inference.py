@@ -153,13 +153,33 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
     """Run one full episode over WebSocket and return the final score."""
     ws_url = env_url.replace("https://", "wss://").replace("http://", "ws://")
 
-    env_client = GenericEnvClient(base_url=ws_url)
-    async with env_client:
-        # Reset
-        kwargs = {"task": task}
-        if seed is not None:
-            kwargs["seed"] = seed
-        result = await env_client.reset(**kwargs)
+    # Retry connection + reset (server may still be starting)
+    kwargs = {"task": task}
+    if seed is not None:
+        kwargs["seed"] = seed
+
+    env_client = None
+    result = None
+    for attempt in range(5):
+        try:
+            env_client = GenericEnvClient(base_url=ws_url)
+            await env_client.__aenter__()
+            result = await env_client.reset(**kwargs)
+            break
+        except Exception:
+            if env_client:
+                try:
+                    await env_client.__aexit__(None, None, None)
+                except Exception:
+                    pass
+                env_client = None
+            if attempt < 4:
+                await asyncio.sleep(3)
+            else:
+                raise
+    assert env_client is not None and result is not None
+
+    try:
         obs = extract_obs(result)
 
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -225,8 +245,12 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
                 episode_done = False
 
             step_count += 1
-            raw_reward = float(obs.get("step_score", 0.0)) if error_str == "null" else 0.0
-            step_reward = min(max(raw_reward, 0.01), 0.99)
+            # Only report the final episode reward on the last step (done=true)
+            # Intermediate steps get reward=0.00 (matches standard RL convention)
+            if episode_done and error_str == "null":
+                step_reward = min(max(float(result.reward) if result.reward is not None else 0.01, 0.01), 0.99)
+            else:
+                step_reward = 0.00
             all_rewards.append(step_reward)
             done_str = "true" if episode_done else "false"
 
@@ -241,8 +265,13 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
             print(f"[STEP] step={step_count} action={act_summary} reward={step_reward:.2f} done={done_str} error={error_str}")
 
             if step_count > 60:
-                print("[STEP] step={} action=safety_stop reward=0.01 done=true error=null".format(step_count + 1))
+                # Safety stop: add a final reward to the list
+                stop_reward = min(max(final_reward, 0.01), 0.99)
+                all_rewards.append(stop_reward)
+                print("[STEP] step={} action=safety_stop reward={:.2f} done=true error=null".format(step_count + 1, stop_reward))
                 break
+    finally:
+        await env_client.__aexit__(None, None, None)
 
     final_reward = min(max(final_reward, 0.01), 0.99)
     all_rewards_str = ",".join(f"{r:.2f}" for r in all_rewards)
@@ -260,7 +289,7 @@ def main():
             score, steps, rewards_str = asyncio.run(run_episode(ENV_URL, task, seed=42))
             print(f"[END] success=true steps={steps} rewards={rewards_str}")
         except Exception as e:
-            print(f"[END] success=false steps=0 rewards=0.01 error={e}")
+            print(f"[END] success=false steps=0 rewards=0.01")
 
 
 if __name__ == "__main__":

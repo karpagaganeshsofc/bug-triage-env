@@ -32,7 +32,7 @@ class BugTriageEnvironment(Environment):
         """Return an empty observation (before reset)."""
         return BugTriageObservation(
             done=False,
-            reward=0.01,
+            reward=0.0,
             feedback="Call reset with a task name to begin: easy, medium, or hard.",
         )
 
@@ -45,7 +45,7 @@ class BugTriageEnvironment(Environment):
         if self._task not in TASK_CONFIG:
             return BugTriageObservation(
                 done=True,
-                reward=0.01,
+                reward=0.0,
                 feedback=f"Invalid task '{task}'. Choose: easy, medium, hard.",
             )
 
@@ -73,7 +73,7 @@ class BugTriageEnvironment(Environment):
 
     def step(self, action: BugTriageAction) -> BugTriageObservation:
         if not hasattr(self, "_bugs") or self._current_bug_idx >= self._bug_count:
-            return BugTriageObservation(done=True, reward=0.01, feedback="Episode is done.")
+            return BugTriageObservation(done=True, reward=0.0, feedback="Episode is done.")
 
         action_type = action.action_type.strip().lower()
 
@@ -140,7 +140,6 @@ class BugTriageEnvironment(Environment):
         # Penalty for wasted (repeated) investigation attempts
         waste_penalty = self._wasted_investigations[idx] * 0.05
         score = max(0.0, score - waste_penalty)
-        score = min(max(score, 0.01), 0.99)  # clamp individual score strictly (0,1)
         self._scores.append(score)
 
         self._current_bug_idx += 1
@@ -173,15 +172,13 @@ class BugTriageEnvironment(Environment):
 
     @property
     def state(self) -> BugTriageState:
-        scores = getattr(self, "_scores", [])
-        avg = min(max(sum(scores) / len(scores), 0.01), 0.99) if scores else 0.01
         return BugTriageState(
             episode_id=getattr(self, "_episode_id", ""),
-            step_count=len(scores),
+            step_count=len(getattr(self, "_scores", [])),
             task_name=getattr(self, "_task", ""),
             total_bugs=getattr(self, "_bug_count", 0),
-            bugs_processed=len(scores),
-            cumulative_score=avg,
+            bugs_processed=len(getattr(self, "_scores", [])),
+            cumulative_score=sum(getattr(self, "_scores", [])),
             investigations_used=getattr(self, "_investigations_used_total", 0),
             investigation_budget=getattr(self, "_investigation_budget", 0),
         )
@@ -190,7 +187,7 @@ class BugTriageEnvironment(Environment):
     # Helpers
     # ------------------------------------------------------------------
 
-    def _make_observation(self, feedback: str, step_score: float = 0.01) -> BugTriageObservation:
+    def _make_observation(self, feedback: str, step_score: float = 0.0) -> BugTriageObservation:
         idx = self._current_bug_idx
         if idx >= self._bug_count:
             return BugTriageObservation(done=True, reward=min(max(sum(self._scores) / len(self._scores), 0.01), 0.99) if self._scores else 0.01, feedback=feedback)
@@ -219,7 +216,7 @@ class BugTriageEnvironment(Environment):
 
         return BugTriageObservation(
             done=False,
-            reward=0.01,
+            reward=0.0,
             bug_report=bug,
             investigations_done=investigations_done,
             available_investigations=available if budget_remaining > 0 else [],

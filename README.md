@@ -47,10 +47,10 @@ Tested with **Qwen/Qwen2.5-72B-Instruct** via HuggingFace Inference Router:
 
 | Task | Score | What's Tested |
 |------|:-----:|---------------|
-| Easy | **0.99** | Bug type classification with full info |
-| Medium | **0.68** | Type + severity with 10 investigation budget |
+| Easy | **1.00** | Bug type classification with full info |
+| Medium | **0.70** | Type + severity with 10 investigation budget |
 | Hard | **0.67** | Full triage (type + severity + fix) with only 6 budget |
-| **Average** | **0.78** | |
+| **Average** | **0.79** | |
 
 ---
 
@@ -234,7 +234,7 @@ The inference script outputs structured logs in the required format:
 [STEP] step=2 action=investigate logs reward=0.00 done=false error=null
 [STEP] step=3 action=triage ui medium reward=0.69 done=false error=null
 ...
-[END] success=true steps=5 rewards=1.00,1.00,1.00,1.00,1.00
+[END] success=true steps=5 score=1.00 rewards=1.00,1.00,1.00,1.00,1.00
 ```
 
 ---

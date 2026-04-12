@@ -23,17 +23,12 @@ from openenv import GenericEnvClient
 # ── Defaults ──────────────────────────────────────────────────────────
 DEFAULT_ENV_URL = "https://karpagaganeshs-bug-triage-env.hf.space"
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-ENV_URL = os.environ.get("ENV_URL", DEFAULT_ENV_URL)
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+ENV_URL = os.getenv("ENV_URL", DEFAULT_ENV_URL)
 
-def _get_api_key():
-    """Get API key: prefer API_KEY (validator proxy), fall back to HF_TOKEN."""
-    return os.environ.get("API_KEY") or os.environ.get("HF_TOKEN") or ""
-
-def _get_llm_client():
-    """Create OpenAI client at call time so env vars are read fresh."""
-    return OpenAI(base_url=API_BASE_URL, api_key=_get_api_key())
+llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 # ── Prompt templates ──────────────────────────────────────────────────
 
@@ -92,10 +87,9 @@ TRIAGE_FORMATS = {
 
 def call_llm(messages: list, temperature: float = 0.2, retries: int = 3) -> str:
     """Call the LLM and return its text response, with retries for transient errors."""
-    client = _get_llm_client()
     for attempt in range(retries):
         try:
-            resp = client.chat.completions.create(
+            resp = llm_client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=temperature,
@@ -153,33 +147,13 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
     """Run one full episode over WebSocket and return the final score."""
     ws_url = env_url.replace("https://", "wss://").replace("http://", "ws://")
 
-    # Retry connection + reset (server may still be starting)
-    kwargs = {"task": task}
-    if seed is not None:
-        kwargs["seed"] = seed
-
-    env_client = None
-    result = None
-    for attempt in range(5):
-        try:
-            env_client = GenericEnvClient(base_url=ws_url)
-            await env_client.__aenter__()
-            result = await env_client.reset(**kwargs)
-            break
-        except Exception:
-            if env_client:
-                try:
-                    await env_client.__aexit__(None, None, None)
-                except Exception:
-                    pass
-                env_client = None
-            if attempt < 4:
-                await asyncio.sleep(3)
-            else:
-                raise
-    assert env_client is not None and result is not None
-
-    try:
+    env_client = GenericEnvClient(base_url=ws_url)
+    async with env_client:
+        # Reset
+        kwargs = {"task": task}
+        if seed is not None:
+            kwargs["seed"] = seed
+        result = await env_client.reset(**kwargs)
         obs = extract_obs(result)
 
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -245,12 +219,7 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
                 episode_done = False
 
             step_count += 1
-            # Only report the final episode reward on the last step (done=true)
-            # Intermediate steps get reward=0.00 (matches standard RL convention)
-            if episode_done and error_str == "null":
-                step_reward = min(max(float(result.reward) if result.reward is not None else 0.01, 0.01), 0.99)
-            else:
-                step_reward = 0.00
+            step_reward = obs.get("step_score", 0.0) if error_str == "null" else 0.0
             all_rewards.append(step_reward)
             done_str = "true" if episode_done else "false"
 
@@ -265,15 +234,10 @@ async def run_episode(env_url: str, task: str, seed: int | None = None) -> float
             print(f"[STEP] step={step_count} action={act_summary} reward={step_reward:.2f} done={done_str} error={error_str}")
 
             if step_count > 60:
-                # Safety stop: add a final reward to the list
-                stop_reward = min(max(final_reward, 0.01), 0.99)
-                all_rewards.append(stop_reward)
-                print("[STEP] step={} action=safety_stop reward={:.2f} done=true error=null".format(step_count + 1, stop_reward))
+                print("[STEP] step={} action=safety_stop reward=0.00 done=true error=null".format(step_count + 1))
                 break
-    finally:
-        await env_client.__aexit__(None, None, None)
 
-    final_reward = min(max(final_reward, 0.01), 0.99)
+    final_reward = min(max(final_reward, 0.0), 1.0)
     all_rewards_str = ",".join(f"{r:.2f}" for r in all_rewards)
     return final_reward, step_count, all_rewards_str
 
@@ -287,9 +251,9 @@ def main():
         print(f"[START] task={task} env=bug_triage model={MODEL_NAME}")
         try:
             score, steps, rewards_str = asyncio.run(run_episode(ENV_URL, task, seed=42))
-            print(f"[END] success=true steps={steps} rewards={rewards_str}")
+            print(f"[END] success=true steps={steps} score={score:.2f} rewards={rewards_str}")
         except Exception as e:
-            print(f"[END] success=false steps=0 rewards=0.01")
+            print(f"[END] success=false steps=0 score=0.00 rewards=0.00 error={e}")
 
 
 if __name__ == "__main__":
